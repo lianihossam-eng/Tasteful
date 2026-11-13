@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tasteful.dev/contracts/gate-schema.json",
+  "title": "Tasteful gate v1",
+  "version": 1,
+  "owner": "decision-core",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["gate_id", "stage", "checklist", "decision", "approver", "owner", "waivers"],
+  "properties": {
+    "gate_id": { "type": "string", "pattern": "^G-[A-Z0-9][A-Z0-9-]*$" },
+    "stage": { "type": "string", "minLength": 1 },
+    "checklist": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["criterion", "evidence_ref", "verifier_role", "verdict", "date"],
+        "properties": {
+          "criterion": { "type": "string", "minLength": 1 },
+          "evidence_ref": { "type": "string", "minLength": 1 },
+          "verifier_role": { "type": "string", "minLength": 1 },
+          "verdict": { "enum": ["pass", "fail", "waived"] },
+          "date": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "decision": {
+      "description": "A human-written `pass` additionally requires a consumed gate_accept approval whose content_hash = computeGateContentHash(gate) (the hash excludes approval_digest); missing approval is E_GATE_NO_APPROVAL. A stored pass is immutable except through `gate revoke`: authored `pending`/`fail`/`revoked` over a stored pass is E_GATE_HUMAN_ONLY ('use gate revoke'), and `pass` -> `pass` with changed content requires a fresh gate_accept approval for the new content (digest restamped). The model gate_upsert path cannot write pass or revoked, and cannot modify a stored pass gate (E_GATE_HUMAN_ONLY). `revoked` is written only by the human `gate revoke --id <G> --approver <email>` transition, which requires a stored pass gate and canonical approver != owner, demotes every accepted decision citing the gate to proposed/needs_review with artifacts ready=false before writing, and journals gate_revoke. gate create with revoked is E_GATE_HUMAN_ONLY.",
+      "enum": ["pass", "fail", "pending", "revoked"]
+    },
+    "approver": { "type": "string", "minLength": 1, "description": "Stored verbatim; empty/leading/trailing whitespace is E_SCHEMA. Comparisons use canonicalIdentity: NFKC + trim; email domain lowercased (local-part case preserved), other ids whole-lowercase; empty rejected." },
+    "owner": { "type": "string", "minLength": 1, "description": "Stored verbatim; empty/leading/trailing whitespace is E_SCHEMA. Comparisons use canonicalIdentity: NFKC + trim; email domain lowercased (local-part case preserved), other ids whole-lowercase; empty rejected." },
+    "waivers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["criterion", "owner", "expiry", "rationale"],
+        "properties": {
+          "criterion": { "type": "string", "minLength": 1 },
+          "owner": { "type": "string", "minLength": 1, "description": "Stored verbatim; empty or leading/trailing whitespace is E_SCHEMA. Identity comparisons use canonicalIdentity." },
+          "expiry": { "type": "string", "minLength": 1 },
+          "rationale": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "approval_digest": {
+      "description": "System-derived provenance, never authored: `gate create --approval` stamps the 64-hex digest of the consumed gate_accept approval. Decision acceptance requires a stored pass gate whose approval_digest resolves to a used granted gate_accept record with target = gate_id, approver = gate.approver, and content_hash = computeGateContentHash(stored gate minus approval_digest). Missing/unresolvable/unused/mismatched provenance is E_GATE_BLOCKED. A submitted gate JSON containing this field is rejected with E_SCHEMA.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

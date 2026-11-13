@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tasteful.dev/contracts/run-journal-schema.json",
+  "title": "Tasteful run journal entry v1",
+  "description": "One JSON object per non-blank line of .tasteful/journal/run.jsonl. Blank/whitespace-only lines are skipped; every non-blank line must parse to a non-null non-array object with integer seq >= 1. seq is contiguous from 1 and prev_hash chains from GENESIS; payload_hash is sha256(canonical payload). A missing or blank journal is healthy only while the project has no decisions/gates/events; once state exists it is E_JOURNAL_CORRUPT (the chain never restarts at seq 1). Unknown extra entry fields are tolerated on read for forward compatibility and are not hashed. The leaf must be a regular file (E_JOURNAL_LEAF). State-changing paths verify the journal before consuming approvals or mutating state.",
+  "version": 1,
+  "owner": "host",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["seq", "ts", "kind", "actor", "payload", "payload_hash", "prev_hash", "versions"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 1 },
+    "ts": { "type": "string", "minLength": 1 },
+    "kind": {
+      "enum": ["command", "tool_call", "approval", "change_event", "adapter", "gate", "error"]
+    },
+    "actor": { "enum": ["human", "agent", "system"] },
+    "payload": { "type": "object" },
+    "payload_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "prev_hash": { "type": "string", "pattern": "^([0-9a-f]{64}|GENESIS)$" },
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tasteful", "pi"],
+      "properties": {
+        "tasteful": { "type": "string" },
+        "pi": { "type": "string" },
+        "figcraft_cli": { "type": "string" }
+      }
+    },
+    "roots": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": { "type": "string" },
+        "exports": { "type": "string" }
+      }
+    },
+    "stderr_tail": { "type": "string", "maxLength": 4096 }
+  }
+}

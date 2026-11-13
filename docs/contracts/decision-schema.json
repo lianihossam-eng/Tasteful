@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tasteful.dev/contracts/decision-schema.json",
+  "title": "Tasteful decision v1",
+  "version": 1,
+  "owner": "decision-core",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "version",
+    "title",
+    "question",
+    "status",
+    "owner",
+    "created_at",
+    "updated_at",
+    "claims",
+    "depends_on",
+    "evidence",
+    "alternatives",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^D[0-9]{3,}$" },
+    "version": { "type": "integer", "minimum": 1 },
+    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "question": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "status": {
+      "description": "Authored. `accepted` requires: non-empty owner; >=1 evidence with sha256 (file refs resolve and hash-match); >=1 artifact checked in order -- ready != false, parseable validated_at, non-empty checks from the closed opens/exports/tokens-resolve vocabulary, validator_version 1, path resolves as a regular file and hash-matches, validated_at not older than the file mtime (an mtime-only touch is stale), and a matching passing validation record under .tasteful/validations/ (same sha256/validator_version/check-name set, all verdicts pass, validated_at not older than the file mtime); a passing gate_ref whose stored gate carries an approval_digest resolving to the consumed gate_accept record for that gate content; and a consumed non-owner (canonical identity) decision_accept approval whose content_hash = computeAuthoredContentHash(decision). Submitting accepted with a fresh validation + approval is also the re-review transition from stale/needs_review/invalidated to current.",
+      "enum": ["proposed", "accepted", "superseded", "rejected"]
+    },
+    "review_state": {
+      "description": "DERIVED (read-only): written by closure, drift, and the accepted re-review transition. Authored decision_upsert input carrying this field is rejected with E_SCHEMA; ordinary updates preserve the stored value. artifact_validate OK does not clear it.",
+      "readOnly": true,
+      "enum": ["current", "stale", "needs_review", "invalidated", "blocked"]
+    },
+    "owner": { "type": "string", "minLength": 1, "maxLength": 200, "description": "Authored and stored verbatim: empty or leading/trailing whitespace is E_SCHEMA (never silently trimmed). Owner/approver comparison uses canonicalIdentity: NFKC + trim; email-shaped local@domain lowercases the domain only (local-part case preserved); other ids lowercase the whole value; empty canonical identity rejected." },
+    "created_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}" },
+    "updated_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}" },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim_id", "subject", "predicate", "value", "scope"],
+        "properties": {
+          "claim_id": { "type": "string", "pattern": "^C-[A-Z0-9][A-Z0-9-]*$" },
+          "subject": { "type": "string", "minLength": 1 },
+          "predicate": { "type": "string", "minLength": 1 },
+          "value": { "type": "string", "minLength": 1 },
+          "scope": { "type": "string", "minLength": 1 },
+          "valid_from": { "type": "string" }
+        }
+      }
+    },
+    "depends_on": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^D[0-9]{3,}$" },
+      "uniqueItems": true
+    },
+    "supersedes": { "type": ["string", "null"], "pattern": "^D[0-9]{3,}$" },
+    "supersede_reason": { "type": "string" },
+    "reject_reason": { "type": "string" },
+    "reject_link": { "type": "string" },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "ref"],
+        "properties": {
+          "type": { "type": "string", "minLength": 1 },
+          "ref": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "captured_at": { "type": "string" }
+        }
+      }
+    },
+    "alternatives": { "type": "array", "items": { "type": "string" } },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "validator_version"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "validator_version": { "type": "integer", "minimum": 1 },
+          "validated_at": { "type": "string", "description": "ISO timestamp of the passing validation. Acceptance rejects (E_ACCEPT_NO_ARTIFACT) in order: ready:false; missing/unparseable validated_at; empty checks; an unsupported check label; validator_version != 1; path/regular-file/hash mismatch; validated_at older than the artifact mtime (an mtime-only touch is stale even with unchanged bytes/hash); no matching passing validation record." },
+          "checks": { "type": "array", "items": { "type": "string" }, "description": "Closed vocabulary: opens, exports, tokens-resolve. exports/tokens-resolve apply only to .figcraft artifacts. Acceptance requires a non-empty list; unknown or failed/prefixed labels (fail, opens:failed) are rejected as unsupported." },
+          "ready": { "type": "boolean", "description": "Acceptance rejects ready:false first, before filesystem work; a bare ready:true is never sufficient without hash/freshness checks and a matching passing validation record." }
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "to_version": { "type": "integer", "minimum": 1 },
+        "steps": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "gate_ref": { "type": ["string", "null"] },
+    "decision_hash": {
+      "description": "DERIVED (read-only): sha256 over canonical authored content excluding review_state/decision_hash. Recomputed by the system writer and verified on every read (E_HASH_MISMATCH on tamper). Authored input carrying this field is rejected with E_SCHEMA.",
+      "readOnly": true,
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

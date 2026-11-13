@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tasteful.dev/contracts/change-event-schema.json",
+  "title": "Tasteful change event v1",
+  "version": 1,
+  "owner": "decision-core",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "claim_id",
+    "old_value",
+    "new_value",
+    "source",
+    "occurred_at",
+    "reason",
+    "author"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "pattern": "^E-[A-Za-z0-9][A-Za-z0-9-]*$", "description": "E-<UTC day>-<nnn>; assigned as max numeric suffix for the day + 1 (gap-safe), never reused. An existing target is E_EVENT_EXISTS; failed invalidation writes no event and consumes no id." },
+    "claim_id": { "type": "string", "pattern": "^C-[A-Z0-9][A-Z0-9-]*$" },
+    "old_value": { "type": "string", "minLength": 1 },
+    "new_value": { "type": "string", "minLength": 1 },
+    "source": { "type": "string", "minLength": 1 },
+    "occurred_at": { "type": "string", "minLength": 1 },
+    "reason": { "type": "string", "minLength": 1 },
+    "author": { "type": "string", "minLength": 1 }
+  }
+}

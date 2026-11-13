@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.yarn/
+
+# Build and test output
+dist/
+coverage/
+*.tsbuildinfo
+*.tgz
+
+# Local agent state and ambient config
+.tasteful/
+**/.tasteful/
+.pi/
+**/.pi/
+.agents/
+**/.agents/
+models.json
+auth.json
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.local
+.npmrc
+
+# Internal process artifacts
+reports/
+docs/reviews/
+
+# Local design inputs (not part of the agent)
+/BRIM Boutique.figcraft
+/assets/
+/exports/
+
+# Logs, temp, OS/editor noise
+*.log
+*.tmp
+tmp/
+temp/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
